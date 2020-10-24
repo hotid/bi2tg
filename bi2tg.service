@@ -1,0 +1,15 @@
+[Unit]
+Description="Send Blue Iris alter video to Telegram"
+
+[Service]
+User=nobody
+Group=nogroup
+WorkingDirectory=/opt/bi2tg/
+VIRTUAL_ENV=/opt/bi2tg/.venv/
+Environment=PATH=$VIRTUAL_ENV/bin:$PATH
+ExecStart=/opt/bi2tg/.venv/bin/python bi2tg.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
