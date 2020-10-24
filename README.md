@@ -1,7 +1,7 @@
 Bi2tg
 ===========
 
-Ugly-codded python daemon that sends Blue Iris alert videos to Telegram 
+Ugly-coded python daemon that sends Blue Iris alert videos to Telegram 
 
 #Instructions:
 ```shell script
