@@ -26,25 +26,28 @@ def find_new_alerts():
         alerts = bi.cmd("alertlist", {"camera": camera["optionDisplay"]})
         for alert in alerts:
             Alert = Query()
-            stored_alert = db.search((Alert.date == alert["date"]) & (Alert.path == alert["path"]))
-            if int(time.time()) - alert["date"] > 3600 or stored_alert["processed"] == 1:
-                alert["processed"] = 1
+            stored_alerts = db.search((Alert.date == alert["date"]) & (Alert.path == alert["path"]))
 
-            if not stored_alert:
+            if not stored_alerts:
                 db.insert(alert)
 
-            if "processed" not in alert:
+            if int(time.time()) - alert["date"] > 3600:
+                continue
+
+            if not stored_alerts:
                 new_alerts.append(alert)
 
     cleanup_database()
     return new_alerts
+
 
 def cleanup_database():
     stored_alert = db.all()
     Alert = Query()
     for alert in stored_alert:
         if int(time.time()) - alert["date"] > 8035200:
-            db.remove((Alert.date == alert["date"])  & (Alert.path == alert["path"]))
+            db.remove((Alert.date == alert["date"]) & (Alert.path == alert["path"]))
+
 
 def main():
     global bi
