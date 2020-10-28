@@ -7,6 +7,7 @@ Group=nogroup
 WorkingDirectory=/opt/bi2tg/
 VIRTUAL_ENV=/opt/bi2tg/.venv/
 Environment=PATH=$VIRTUAL_ENV/bin:$PATH
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/opt/bi2tg/.venv/bin/python bi2tg.py
 Restart=always
 RestartSec=5
