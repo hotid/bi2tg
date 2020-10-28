@@ -11,7 +11,7 @@ import time
 from pytimeparse.timeparse import timeparse
 from tinydb import TinyDB, Query
 
-db = TinyDB('/var/run/bi2tg.json')
+db = TinyDB('/var/tmp/db.json')
 bi = None
 
 import requests, json, hashlib, sys
