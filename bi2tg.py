@@ -9,11 +9,45 @@ import telebot
 import configparser
 import time
 from pytimeparse.timeparse import timeparse
+from tinydb import TinyDB, Query
+
+db = TinyDB('/var/run/bi2tg.json')
+bi = None
 
 import requests, json, hashlib, sys
 
 
+def find_new_alerts():
+    new_alerts = []
+    cameras = bi.cmd("camlist")
+    for camera in cameras:
+        if "active" not in camera:
+            continue
+        alerts = bi.cmd("alertlist", {"camera": camera["optionDisplay"]})
+        for alert in alerts:
+            Alert = Query()
+            stored_alert = db.search((Alert.date == alert["date"]) & (Alert.path == alert["path"]))
+            if int(time.time()) - alert["date"] > 3600 or stored_alert["processed"] == 1:
+                alert["processed"] = 1
+
+            if not stored_alert:
+                db.insert(alert)
+
+            if "processed" not in alert:
+                new_alerts.append(alert)
+
+    cleanup_database()
+    return new_alerts
+
+def cleanup_database():
+    stored_alert = db.all()
+    Alert = Query()
+    for alert in stored_alert:
+        if int(time.time()) - alert["date"] > 8035200:
+            db.remove((Alert.date == alert["date"])  & (Alert.path == alert["path"]))
+
 def main():
+    global bi
     config_path = "/etc/bi2tg/settings.ini"
     config = configparser.ConfigParser()
     config.read(config_path)
@@ -23,18 +57,15 @@ def main():
     short_videos_sent = {}
 
     bi = BlueIris(config.get("bi5", "host"), config.get("bi5", "login"), config.get("bi5", "password"), False)
-    tb = telebot.TeleBot(config.get("tg", "token"), parse_mode=None)
-    while 1:
-        cameras = bi.cmd("camlist")
-        for camera in cameras:
-            if "newalerts" in camera and camera["newalerts"] > 0:
-                print("Camera %s has %d new alerts" % (camera["optionDisplay"], camera["newalerts"]))
-                alerts = bi.cmd("alertlist", {"camera": camera["optionDisplay"], "reset": 1})
-                alerts = alerts[0:camera["newalerts"]]
-                for alert in alerts:
-                    alerts_to_process.append(alert)
 
-        print("Alerts to process: %d" % len(alerts_to_process))
+    tb = telebot.TeleBot(config.get("tg", "token"), parse_mode=None)
+
+    while 1:
+        new_alerts = find_new_alerts()
+        for alert in new_alerts:
+            alerts_to_process.append(alert)
+
+        # print("Alerts to process: %d" % len(alerts_to_process))
 
         for alert in alerts_to_process:
             current_clip = bi.cmd("clipstats", {"path": alert["path"]})
@@ -48,7 +79,9 @@ def main():
 
             if current_alert_data["offset"] > current_clip["msec"]:
                 continue
+
             alert_duration = timeparse(current_alert_data["filesize"])
+
             if alert_duration > 0:
                 print("Alert %s duration %d" % (current_alert_data["path"], alert_duration))
                 msec = alert_duration * 1000
@@ -57,6 +90,7 @@ def main():
                                         {"path": alert["path"], "profile": 1, "startms": current_alert_data["offset"],
                                          "msec": msec})
                 export_request_to_alert[export_request["path"]] = alert["path"]
+
             else:
                 if int(time.time()) - current_alert_data["date"] > 15 and (
                         "last_sent" not in alert or int(time.time()) - alert["last_sent"] > 15):
